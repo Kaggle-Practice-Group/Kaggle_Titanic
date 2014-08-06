@@ -62,7 +62,7 @@ print(lcp$which[lcp$Cp <= 8,])
 # Training Original Models
 ###
 
-if(!skipTraining) {
+if(!skipTraining) {   
    begin = Sys.time()
    
    # 1- Trees (rpart method)
@@ -78,50 +78,55 @@ if(!skipTraining) {
    # 3- GBM
    message("Training model (GBM)...")
    fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 20)
-   fitGBM <- train(Survived ~ Age + Pclass + Sex + SibSp, data = training, method = 'gbm', trControl = fitControl, 
+   fitGBM <- train(Survived ~ Age + Pclass + Sex + SibSp, data=training, method='gbm', trControl=fitControl, 
                    verbose = FALSE)
    
    # 4- Support Vector Machine (SVM)
    message("Training model (SVM)...")
-   fitSVM <- train(Survived ~ Age + Pclass + Sex + SibSp, data=training, method = 'svmLinear', trControl = fitControl)
+   fitSVM <- train(Survived ~ Age + Pclass + Sex + SibSp, data=training, method='svmLinear', trControl=fitControl)
+   
+   # 5- Neural Net
+   message("Training model (Neural Net)...")
+   fitANN = train(Survived ~ Age + Pclass + Sex + SibSp, data=training, method='avNNet')
    
    end = Sys.time()
    message(sprintf("Total time to fit models, with %d cores: %d minutes %d seconds.", 
                    detectCores() - ignorecores, 
                    floor(as.numeric(end-begin, units="mins")), 
                    floor(as.numeric(end-begin, units="secs")) %% 60))
+   
+   # Store the names of each model.
+   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN')
+   
+   # Stores all of the models in a list.
+   # Each model name must begin with "fit".
+   # The suffix of each model name must be added to 'method', above.
+   models = lapply(paste("fit", method, sep=""), get)
 }
    
 ###
-# Cross-validation and Training Prediction
+# 
 ###
 
-method <- c('trees', 'RF', 'GBM', 'SVM')
+# Predict on each dataset with the original models. (Not sure yet which of these we're going to need)
+train.predict = data.frame(lapply(models, predict, training), training$Survived)
 
-train.predict = data.frame(
-                  predict(fitTREE, training), 
-                  predict(fitRF, training), 
-                  predict(fitGBM, training), 
-                  predict(fitSVM, training), 
-                  training$Survived)
+valid.predict = data.frame(lapply(models, predict, validation), validation$Survived)
 
-valid.predict = data.frame(
-                  predict(fitTREE, validation), 
-                  predict(fitRF, validation), 
-                  predict(fitGBM, validation), 
-                  predict(fitSVM, validation), 
-                  validation$Survived)
-names(train.predict) = names(valid.predict) = c(method, "Survived")
+test.predict = data.frame(lapply(models, predict, testing), testing$Survived)
+
+names(train.predict) = names(valid.predict) = names(test.predict) = c(method, "Survived")
 
 # Calculate in-sample accuracy for each model.
 inSample.Accuracy <- c(max(fitTREE$results[,2]), 
                        max(fitRF$results[,2]), 
                        max(fitGBM$results[,4]),
-                       max(fitSVM$results[,2])
+                       max(fitSVM$results[,2]),
+                       max(fitANN$results[,2])
 )
 
 # Create confusion matrices for each model and store them in a list.
-confusion = lapply(train.predict[,1:4], confusionMatrix, train.predict[,5])
+confusion = lapply(train.predict[,-ncol(train.predict)], confusionMatrix, train.predict[,ncol(train.predict)])
 
 # Estimate OOS accuracy for each model.
 outSample.Accuracy = NULL
@@ -149,25 +154,26 @@ cat(sprintf("Highest in-sample accuracy: %.02f%% with method %s\r\nHighest estim
 ###
 if(!skipTraining) {   
    # Combine predicted values of models on the TRAINING set.
-   modelPreds = data.frame(tree=predict(fitTREE, training), rf=predict(fitRF, training), 
-                           gbm=predict(fitGBM, training), svm=predict(fitSVM, training), 
-                           Survived=training$Survived)
+#  modelPreds = data.frame(tree=predict(fitTREE, training), rf=predict(fitRF, training), 
+#                          gbm=predict(fitGBM, training), svm=predict(fitSVM, training), 
+#                           Survived=training$Survived)
    
    # Create stacked model on predictions.
    message("Training stacked model...")
-   stackedModel = train(Survived ~ ., method="gbm", data=modelPreds)
+   stackedModel = train(Survived ~ ., method="rf", data=train.predict)
 }
 
 # Predict on validation set.
-stackedPreds = predict(stackedModel, modelPreds)
+stacked.predict = predict(stackedModel, valid.predict)
 
 # Predict on test set.
-tree = predict(fitTREE, testing)
-rf = predict(fitRF, testing)
-gbm = predict(fitGBM, testing)
-svm = predict(fitSVM, testing)
-testPreds = data.frame(tree, rf, gbm, svm)
-combinedPreds = predict(stackedModel, testPreds)
+#tree = predict(fitTREE, testing)
+#rf = predict(fitRF, testing)
+#gbm = predict(fitGBM, testing)
+#svm = predict(fitSVM, testing)
+#testPreds = data.frame(tree, rf, gbm, svm)
+#combinedPreds = predict(stackedModel, testPreds)
 
 # Print accuracy.
-cat(sprintf("Real out-of-sample prediction accuracy: %.01f%%\n", sum(combinedPreds == testing$Survived) / length(testing$Survived) * 100))
+cat(sprintf("Real out-of-sample prediction accuracy on validation set: %.01f%%\n", 
+            sum(stacked.predict == valid.predict$Survived) / length(valid.predict$Survived) * 100))
