@@ -1,13 +1,16 @@
+Mac = F
+Windows = T
+
 data <- read.csv("data/train.csv", header=T, 
                     colClasses=c("integer", "factor", "factor", "character", 
                                  "factor", "numeric", "integer", "integer", 
                                  "character", "numeric", "character", "factor"))
 
-## Set common seed for all team members for reproducibility purposes
+## Set seed
 set.seed(3846)
 
-library('caret')
-library('plyr') 
+library(caret)
+library(plyr) 
 
 ###
 # Pre-processing
@@ -16,63 +19,80 @@ library('plyr')
 levels(data$Survived) = c("N", "Y")
 levels(data$Sex) = c("F", "M")
 
-# populate empty cells with NAs
-data[data == ''] <- NA
-# define function to count NAs
-nmissing <- function(x) sum(is.na(x))
-# use colwise from plyr package to apply the function to columns
-missingNA <- colwise(nmissing)(data)
-# identify columns that have more than 50% NAs
-indexMissingNA <- missingNA >= dim(data)[1]/2
-# clean data base on such index
-new.data <- data[, !indexMissingNA]
-# manually remove variables, such as: 'Name', 'Ticket', ...
-new.data <- new.data[, c(-4, -9, -11)]
+# Remove Name, Ticket, and Cabin
+new.data <- data[, c(-4, -9, -11)]
 
 ###
-# Exploratory Analysis
+# Partition Data
 ###
 
-###
-# Sampling
-###
-
-# Out of the original dataset, I create a 90% sample for training and 10% sample
-# for our validation. If our validation gives good result, then we can apply the 
-# Machine Learning algorithm to the 'test.csv' dataset provided
-
+# Create data partition with 90% training data.
 indexSample <- createDataPartition(y=new.data$Survived, p=.9, list=FALSE)
 training <- new.data[indexSample,]
+attach(training)
 validation <- new.data[-indexSample,]
 validation <- na.omit(validation)
 
 ###
-# Run several ML algorithms (training)
+# Parameter Pruning
 ###
 
-# load library doMC that will force R to use all cores of Mac in parallel
-library('doMC') 
-registerDoMC(cores = 2) # set number of CPU cores
-##
+# Stepwise function finds that the best formula is Survived ~ SibSp + Age + Pclass + Sex
+glm = glm(Survived ~ Fare + Embarked + Pclass + Sex + Age + SibSp + Parch, 
+          data=training, family="binomial")
+aic = step(glm, direction="both")
 
-library('randomForest')
+if(T) {
+
+###
+# Training
+###
+
+if(Mac) {
+   # Set up parallel processors for Mac
+   library('doMC')
+   ignorecores = 1 # Number of cores to NOT dedicate.
+   registerDoMC(cores = detectCores() - ignorecores) # set number of CPU cores
+}
+else if(Windows) {
+   # Set up parallel processors for Windows
+   library(doParallel)
+   ignorecores = 1 # Number of cores to NOT dedicate.
+   cl = makeCluster(detectCores() - ignorecores)
+   registerDoParallel(cl)
+}
+
+begin = Sys.time()
+
 # 1- Trees (rpart method)
-fitTREE <- train(Survived ~ ., data=training, method='rpart', preProcess=c("center", "scale"))
+message("Training model (rpart)...")
+fitTREE <- train(Survived ~ SibSp + Age + Pclass + Sex, data=training, method='rpart', preProcess=c("center", "scale"))
 
 # 2- Random Forest
+message("Training model (Random Forests)...")
 fitControlRF <- trainControl(method = "cv", number = 15)
-fitRF <- train(Survived ~ ., data=training, method='rf', preProcess=c("center", "scale"), 
+fitRF <- train(Survived ~ SibSp + Age + Pclass + Sex, data=training, method='rf', preProcess=c("center", "scale"), 
                trControl = fitControlRF, prox=TRUE, verbose = FALSE)
 
 # 3- GBM
+message("Training model (GBM)...")
 fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 20)
-fitGBM <- train(Survived ~ ., data = training, method = 'gbm', trControl = fitControl, 
+fitGBM <- train(Survived ~ SibSp + Age + Pclass + Sex, data = training, method = 'gbm', trControl = fitControl, 
                 verbose = FALSE)
 
 # 4- Support Vector Machine (SVM)
-fitSVM <- train(Survived ~., data=training, method = 'svmLinear', trControl = fitControl)
+message("Training model (SVM)...")
+fitSVM <- train(Survived ~ SibSp + Age + Pclass + Sex, data=training, method = 'svmLinear', trControl = fitControl)
 
-#### In- / Out-Sample errors and cross-validation
+end = Sys.time()
+message(sprintf("Total time to fit models, with %d cores: %d minutes %d seconds.", 
+                detectCores() - ignorecores, 
+                floor(as.numeric(end-begin, units="mins")), 
+                floor(as.numeric(end-begin, units="secs")) %% 60))
+
+###
+# Cross-validation
+###
 
 method <- c('trees', 'RF', 'GBM', 'SVM')
 
@@ -132,18 +152,20 @@ declare <- rbind(declare, paste('Highest out-sample accuracy: ',
                                 *100, '% with method ', as.vector(errors.df[which.max(errors.df$outSample.Acc), 1]),
                                 '.', sep=''))
 cat(declare)
+}
 
 ###
 # Predict test cases
 ###
-
-test <- read.csv("data/test.csv", header=T, 
-                 colClasses=c("integer", "factor", "character", 'factor', 
-                              'numeric', 'integer', 'integer', 'character',
-                              'numeric', 'character', 'factor'))
-test <- test[, c(-3, -8, -10)]
-levels(test$Survived) = c("N", "Y")
-levels(test$Sex) = c("F", "M")
-
-predictedTEST <- predict(fitRF, test)
-predictedTEST
+if(F) {
+   test <- read.csv("data/test.csv", header=T, 
+                    colClasses=c("integer", "factor", "character", 'factor', 
+                                 'numeric', 'integer', 'integer', 'character',
+                                 'numeric', 'character', 'factor'))
+   test <- test[, c(-3, -8, -10)]
+   levels(test$Survived) = c("N", "Y")
+   levels(test$Sex) = c("F", "M")
+   
+   predictedTEST <- predict(fitRF, test)
+   predictedTEST
+}
