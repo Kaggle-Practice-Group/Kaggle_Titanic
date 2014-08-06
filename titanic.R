@@ -1,7 +1,8 @@
-Mac = F
-Windows = T
 skipTraining = F
 ignorecores = 2 # Number of cores left free when training.
+
+source("activateParallel.R")
+activateParallel(ignorecores)
 
 # Read files.
 data = read.csv("data/train.csv", header=T, 
@@ -60,17 +61,6 @@ print(lcp$which[lcp$Cp <= 8,])
 ###
 # Training
 ###
-
-if(Mac) {
-   # Set up parallel processors for Mac.
-   library('doMC')
-   registerDoMC(cores = detectCores() - ignorecores)
-} else if(Windows) {
-   # Set up parallel processors for Windows.
-   library(doParallel)
-   cl = makeCluster(detectCores() - ignorecores)
-   registerDoParallel(cl)
-}
 
 if(!skipTraining) {
    begin = Sys.time()
