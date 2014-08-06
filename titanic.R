@@ -1,4 +1,3 @@
-# DELETE THIS COMMENT
 Mac = F
 Windows = T
 skipTraining = F
