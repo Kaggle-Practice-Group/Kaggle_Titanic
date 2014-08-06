@@ -59,7 +59,7 @@ lcp = leaps(data.matrix(training[,3:9]), training[,2], method="Cp")
 print(lcp$which[lcp$Cp <= 8,])
 
 ###
-# Training
+# Training Original Models
 ###
 
 if(Mac) {
@@ -78,23 +78,23 @@ if(!skipTraining) {
    
    # 1- Trees (rpart method)
    message("Training model (rpart)...")
-   fitTREE <- train(Survived ~ Age + Pclass + Sex + Embarked + Parch + Fare + SibSp, data=training, method='rpart', preProcess=c("center", "scale"))
+   fitTREE <- train(Survived ~ Age + Pclass + Sex + SibSp, data=training, method='rpart', preProcess=c("center", "scale"))
    
    # 2- Random Forest
    message("Training model (Random Forests)...")
-   fitControlRF <- trainControl(method = "cv", number = 15)
-   fitRF <- train(Survived ~ Age + Pclass + Sex + Embarked + Parch + Fare + SibSp, data=training, method='rf', preProcess=c("center", "scale"), 
+   fitControlRF <- trainControl(method = "cv", number = 30)
+   fitRF <- train(Survived ~ Age + Pclass + Sex + SibSp, data=training, method='rf', preProcess=c("center", "scale"), 
                   trControl = fitControlRF, prox=TRUE, verbose = FALSE)
    
    # 3- GBM
    message("Training model (GBM)...")
    fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 20)
-   fitGBM <- train(Survived ~ Age + Pclass + Sex + Embarked + Parch + Fare + SibSp, data = training, method = 'gbm', trControl = fitControl, 
+   fitGBM <- train(Survived ~ Age + Pclass + Sex + SibSp, data = training, method = 'gbm', trControl = fitControl, 
                    verbose = FALSE)
    
    # 4- Support Vector Machine (SVM)
    message("Training model (SVM)...")
-   fitSVM <- train(Survived ~ Age + Pclass + Sex + Embarked + Parch + Fare + SibSp, data=training, method = 'svmLinear', trControl = fitControl)
+   fitSVM <- train(Survived ~ Age + Pclass + Sex + SibSp, data=training, method = 'svmLinear', trControl = fitControl)
    
    end = Sys.time()
    message(sprintf("Total time to fit models, with %d cores: %d minutes %d seconds.", 
@@ -104,74 +104,65 @@ if(!skipTraining) {
 }
    
 ###
-# Cross-validation
+# Cross-validation and Training Prediction
 ###
 
 method <- c('trees', 'RF', 'GBM', 'SVM')
 
-# in-sample error
+train.predict = data.frame(
+                  predict(fitTREE, training), 
+                  predict(fitRF, training), 
+                  predict(fitGBM, training), 
+                  predict(fitSVM, training), 
+                  training$Survived)
+
+valid.predict = data.frame(
+                  predict(fitTREE, validation), 
+                  predict(fitRF, validation), 
+                  predict(fitGBM, validation), 
+                  predict(fitSVM, validation), 
+                  validation$Survived)
+names(train.predict) = names(valid.predict) = c(method, "Survived")
+
+# Calculate in-sample accuracy for each model.
 inSample.Accuracy <- c(max(fitTREE$results[,2]), 
                        max(fitRF$results[,2]), 
                        max(fitGBM$results[,4]),
                        max(fitSVM$results[,2])
 )
-inSample.Error <- c(1 - max(fitTREE$results[,2]), 
-                    1 - max(fitRF$results[,2]), 
-                    1 - max(fitGBM$results[,4]),
-                    1 - max(fitSVM$results[,2])
-)
 
-# TREE prediction on validation set
-predictedValuesTREE <- predict(fitTREE, validation)
-confM.TREE <- confusionMatrix(validation$Survived, predictedValuesTREE)
+# Create confusion matrices for each model and store them in a list.
+confusion = lapply(train.predict[,1:4], confusionMatrix, train.predict[,5])
 
-# RF prediction on validation set
-predictedValuesRF <- predict(fitRF, validation)
-confM.RF <- confusionMatrix(validation$Survived, predictedValuesRF)
+# Estimate OOS accuracy for each model.
+outSample.Accuracy = NULL
+for(cm in confusion) {
+   outSample.Accuracy = c(outSample.Accuracy, cm$overall[1])
+}
 
-# GBM prediction on validation set
-predictedValuesGBM <- predict(fitGBM, validation)
-confM.GBM <- confusionMatrix(validation$Survived, predictedValuesGBM)
-
-# SVM prediction on validation set
-predictedValuesSVM <- predict(fitSVM, validation)
-confM.SVM <- confusionMatrix(validation$Survived, predictedValuesSVM)
-
-outSample.Accuracy <- c(as.numeric(confM.TREE$overall[1]),
-                        as.numeric(confM.RF$overall[1]),
-                        as.numeric(confM.GBM$overall[1]),
-                        as.numeric(confM.SVM$overall[1])
-)
-outSample.Error <- c(1 - as.numeric(confM.TREE$overall[1]),
-                     1 - as.numeric(confM.RF$overall[1]),
-                     1 - as.numeric(confM.GBM$overall[1]),
-                     1 - as.numeric(confM.SVM$overall[1])
-)
+# Create errors data frame.
 errors.df <- data.frame(method = method, 
                         inSample.Acc = inSample.Accuracy, 
-                        inSample.Err = inSample.Error, 
+                        inSample.Err = 1 - inSample.Accuracy, 
                         outSample.Acc = outSample.Accuracy, 
-                        outSample.Err = outSample.Error, 
+                        outSample.Err = 1 - outSample.Accuracy, 
                         stringsAsFactors=FALSE)
-errors.df
+print(errors.df)
 
-declare <- NULL
-declare <- rbind(declare, paste('Highest in-sample accuracy: ', 
-                                round(as.vector(errors.df[which.max(errors.df$inSample.Acc), 2]), 4)
-                                *100, '% with method ', as.vector(errors.df[which.max(errors.df$inSample.Acc), 1]),
-                                '.\n', sep=''))
-declare <- rbind(declare, paste('Highest out-sample accuracy: ',
-                                round(as.vector(errors.df[which.max(errors.df$outSample.Acc), 4]), 4)
-                                *100, '% with method ', as.vector(errors.df[which.max(errors.df$outSample.Acc), 1]),
-                                '.', sep=''))
-cat(declare)
+cat(sprintf("Highest in-sample accuracy: %.02f%% with method %s\r\nHighest estimated out-of-sample accuracy: %.02f%% with method %s\n", 
+            max(errors.df$inSample.Acc) * 100, 
+            errors.df[which.max(errors.df$inSample.Acc), 1],
+            max(errors.df$outSample.Acc) * 100,
+            errors.df[which.max(errors.df$outSample.Acc), 1]))
 
 ###
 # Prediction
 ###
 if(!skipTraining) {   
-   # Combine predicted values with validation answers.
-   modelPreds = data.frame(tree=predictedValuesTREE, rf=predictedValuesRF, gbm=predictedValuesGBM, svm=predictedValuesSVM, Survived=validation$Survived)
+   # Combine predicted values of models on the TRAINING set.
+   modelPreds = data.frame(tree=predict(fitTREE, training), rf=predict(fitRF, training), 
+                           gbm=predict(fitGBM, training), svm=predict(fitSVM, training), 
+                           Survived=training$Survived)
    
    # Create stacked model on predictions.
    message("Training stacked model...")
