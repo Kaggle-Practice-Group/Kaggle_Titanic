@@ -1,19 +1,22 @@
-Mac = T
-Windows = F
+Mac = F
+Windows = T
 skipTraining = F
-ignorecores = 0 # Number of cores left free when training.
+ignorecores = 2 # Number of cores left free when training.
 
+# Read files.
 data = read.csv("data/train.csv", header=T, 
                    colClasses=c("integer", "factor", "factor", "character", 
                                  "factor", "numeric", "integer", "integer", 
                                  "character", "numeric", "character", "factor"))
 final.test = read.csv("data/test.csv", header=T)
 
-## Set seed
+# Set seed.
 set.seed(3846)
 
+# Load libraries.
 library(caret)
 library(plyr) 
+library(leaps)
 
 ###
 # Pre-processing
@@ -22,7 +25,7 @@ library(plyr)
 levels(data$Survived) = c("N", "Y")
 levels(data$Sex) = c("F", "M")
 
-# Remove Name, Ticket, and Cabin
+# Remove Name, Ticket, Cabin, and incomplete cases.
 new.data <- data[complete.cases(data), c(-4, -9, -11)]
 
 ###
@@ -42,42 +45,28 @@ validation = validation[validationIndices,]
 # Parameter Pruning
 ###
 
-# Stepwise function finds that the best formula is Survived ~ SibSp + Age + Pclass + Sex
-glm = glm(Survived ~ Fare + Embarked + Pclass + Sex + Age + SibSp + Parch, 
-          data=training, family="binomial")
-aic = step(glm, direction="both")
-print(summary(aic))
+# Perform Best Subsets Regression.
 
-# All Subsets Regression finds that the best formula is Survived ~ Age + Pclass + Sex
-library(leaps)
-leaps <- regsubsets(Survived ~ Fare + Embarked + Pclass + Sex + Age + SibSp + Parch,
-                    data = training, 
-                    nbest = 1,       # 1 best model for each number of predictors
-                    nvmax = NULL,    # NULL for no limit on number of variables
-                    force.in = NULL, force.out = NULL,
-                    method = "exhaustive")
-lot(leaps, scale='adjr2')
-## actually, the plot sorts the best models from lower ajusted R2 value to higher adjr2
-## In this case it shows that the highest adjr2 value associated with the lowest number
-## of variables is the 8th (starting from bottom). I however don't know which R commands
-## to use to identify it, so I had to do visually using the plot
-## I tried:
-# summary.leap <- summary(leaps)
-# summary.leap$which[summary.leap$adjr2,]
-# but this outcomes the model with highest adjr2 value (rather than the 'best'
-# ratio of adjr2 and number of variables)
+# Adjusted R2 method.
+lr2 = leaps(data.matrix(training[,3:9]), training[,2], method="adjr2")
+# Best combination of adjusted R2 predictors: Suvival ~ Pclass + Sex + Age + Sibsp
+print(names(training[,3:9])[lr2$which[match(max(lr2$adjr2), lr2$adjr2),]])
+
+# Mallow's Cp-statistic method.
+lcp = leaps(data.matrix(training[,3:9]), training[,2], method="Cp")
+# Many different combinations of predictors would be suitable, but at a minimum, PClass, Sex, and Age must be used.
+print(lcp$which[lcp$Cp <= 8,])
 
 ###
 # Training
 ###
 
-
 if(Mac) {
-   # Set up parallel processors for Mac
+   # Set up parallel processors for Mac.
    library('doMC')
    registerDoMC(cores = detectCores() - ignorecores)
 } else if(Windows) {
-   # Set up parallel processors for Windows
+   # Set up parallel processors for Windows.
    library(doParallel)
    cl = makeCluster(detectCores() - ignorecores)
    registerDoParallel(cl)
