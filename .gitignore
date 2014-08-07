@@ -4,6 +4,12 @@
 # History files
 .Rhistory
 
+# skip user data
+.Rproj.user/
+
+# Don't open RStudio Rproj data
+*.Rproj
+
 # Example code in package build process
 *-Ex.R
 
