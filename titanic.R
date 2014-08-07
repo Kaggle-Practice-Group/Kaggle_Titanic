@@ -2,7 +2,7 @@
 rm(list=ls(), inherits=T) 
 
 skipTraining = F
-ignorecores = 2 # Number of cores left free when training.
+ignorecores = 6 # Number of cores left free when training.
 use.validation = F
 
 source("partitionData.R")
