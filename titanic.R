@@ -5,6 +5,7 @@ skipTraining = F
 ignorecores = 2 # Number of cores left free when training.
 use.validation = F
 
+source("partitionData.R")
 source("activateParallel.R")
 activateParallel(ignorecores)
 
@@ -36,18 +37,8 @@ data <- data[complete.cases(data), c(-4, -9, -11)]
 ###
 # Partition Data
 ###
+partitionData(data,"Survived",use.validation)
 
-# Split data: 75% training, 25% testing.
-inTrain <- createDataPartition(data$Survived, p=.75, list=FALSE)
-training <- data[inTrain,]
-testing = data[-inTrain,]
-
-# If using validation set, split data: 45% training, 30% validation, 25% testing.
-if(use.validation) {
-   inValidation = createDataPartition(training$Survived, p=.4, list=FALSE)   
-   validation = training[inValidation,]
-   training = training[-inValidation,]
-}
 ###
 # Best Subsets Regression
 ###
