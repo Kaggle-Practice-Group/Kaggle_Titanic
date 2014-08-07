@@ -1,8 +1,8 @@
 # Clear environments.
-#rm(list=ls(), inherits=T) 
+rm(list=ls(), inherits=T) 
 
 skipTraining = F
-ignorecores = 2 # Number of cores left free when training.
+ignorecores = 6 # Number of cores left free when training.
 use.validation = F
 
 source("activateParallel.R")
@@ -16,7 +16,7 @@ data = read.csv("data/train.csv", header=T,
 final.test = read.csv("data/test.csv", header=T)
 
 # Set seed.
-#set.seed(3846)
+set.seed(3846)
 
 # Load libraries.
 library(caret)
@@ -147,14 +147,24 @@ errors.df <- data.frame(method = method,
                         inSample.Err = 1 - inSample.Accuracy, 
                         outSample.Acc = outSample.Accuracy, 
                         outSample.Err = 1 - outSample.Accuracy, 
+                        real.outSample.Acc = sapply(subset(test.predict, select = -Survived), 
+                            function(x) {sum(x == test.predict$Survived) / nrow(test.predict)}),
                         stringsAsFactors=FALSE)
 print(errors.df)
 
-cat(sprintf("Highest in-sample accuracy: %.02f%% with method %s\r\nHighest estimated out-of-sample accuracy: %.02f%% with method %s\n", 
+cat(sprintf(
+"\nHighest in-sample accuracy: %.02f%% with method %s
+Highest estimated out-of-sample accuracy: %.02f%% with method %s
+Highest real out-of-sample accuracy: %.02f%% with method %s\r\n", 
             max(errors.df$inSample.Acc) * 100, 
             errors.df[which.max(errors.df$inSample.Acc), 1],
             max(errors.df$outSample.Acc) * 100,
-            errors.df[which.max(errors.df$outSample.Acc), 1]))
+            errors.df[which.max(errors.df$outSample.Acc), 1],
+            max(errors.df$real.outSample.Acc) * 100,
+            errors.df[which.max(errors.df$real.outSample.Acc), "method"]
+   )
+)
+            
 
 ###
 # Prediction
@@ -165,10 +175,21 @@ if(!skipTraining) {
    stackedModel = train(Survived ~ ., method="rf", data=train.predict)
 }
 
-# Predict on validation set.
-#stacked.predict = predict(stackedModel, valid.predict)
+# Predict with stacked model.
+stacked.train.predict = predict(stackedModel, train.predict)
+stacked.test.predict = predict(stackedModel, test.predict)
+
+if(use.validation)
+   stacked.valid.predict = predict(stackedModel, valid.predict)
 
 # Print accuracy.
-#cat(sprintf("Real out-of-sample prediction accuracy on validation set: %.01f%%\n", 
-#            sum(stacked.predict == valid.predict$Survived) / length(valid.predict$Survived) * 100))
+cat(sprintf("In-sample accuracy with stacked model: %.02f%%\n", 
+            sum(stacked.train.predict == train.predict$Survived) / length(train.predict$Survived) * 100))
+
+if(use.validation)
+   cat(sprintf("Validation set accuracy with stacked model: %.02f%%\n", 
+               sum(stacked.valid.predict == valid.predict$Survived) / length(valid.predict$Survived) * 100))
+
+cat(sprintf("Real out-of-sample accuracy with stacked model: %.02f%%\n", 
+            sum(stacked.test.predict == test.predict$Survived) / length(test.predict$Survived) * 100))
 
