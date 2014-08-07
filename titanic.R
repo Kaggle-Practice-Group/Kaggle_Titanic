@@ -69,7 +69,7 @@ print(lcp$which[lcp$Cp <= 8,])
 if(!skipTraining) {   
    
    # Define formula to use for training.
-   formula = formula(Survived ~ Age, Pclass + Sex + SibSp)
+   formula = formula(Survived ~ Age + Pclass + Sex + SibSp)
    
    begin = Sys.time()
    
