@@ -2,7 +2,7 @@
 rm(list=ls(), inherits=T) 
 
 skipTraining = F
-ignorecores = 2 # Number of cores left free when training.
+ignorecores = 0 # Number of cores left free when training.
 use.validation = F
 
 source("partitionData.R")
@@ -23,6 +23,8 @@ set.seed(3846)
 library(caret)
 library(plyr) 
 library(leaps)
+library(arm)
+library(mboost)
 
 ###
 # Pre-processing
@@ -91,6 +93,18 @@ if(!skipTraining) {
    # 6- Fit Principal Component Analysis
    message("Training model (PCA)...")
    fitPCA <- train(formula, data=training, method='glmnet', preProcess='pca')
+
+   # 7- Fit Bayesian Generalized Linear Model
+   message("Training model (Bayesian GLM)...")
+   fitBAYE <- train(formula, data=training, method='bayesglm', preProcess=c("center", "scale"))
+ 
+   # 8- Fit Boosted Generalized Linear Model 
+   message("Training model (bGLM)...")
+   fitBGLM <- train(formula, data=training, method='glmboost', preProcess=c("center", "scale"))
+   
+   # 9- Fit Boosted Logistic Regression 
+   message("Training model (bLR)...")
+   fitBLR <- train(formula, data=training, method='LogitBoost', preProcess=c("center", "scale"))
    
    end = Sys.time()
    message(sprintf("Total time to fit models, with %d cores: %d minutes %d seconds.", 
@@ -99,7 +113,7 @@ if(!skipTraining) {
                    floor(as.numeric(end-begin, units="secs")) %% 60))
    
    # Store the names of each model.
-   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN', 'PCA')
+   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN', 'PCA', 'BAYE', 'BGLM', 'BLR')
    
    # Stores all of the models in a list.
    # Each model name must begin with "fit".
