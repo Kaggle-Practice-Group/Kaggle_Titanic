@@ -25,6 +25,7 @@ library(plyr)
 library(leaps)
 library(arm)
 library(mboost)
+library(RWeka)
 
 ###
 # Pre-processing
@@ -106,6 +107,11 @@ if(!skipTraining) {
    message("Training model (bLR)...")
    fitBLR <- train(formula, data=training, method='LogitBoost', preProcess=c("center", "scale"))
    
+   # 10- Fit Penalized Multinomial Regression 
+   message("Training model (PMR)...")
+   fitPMR <- train(formula, data=training, method='multinom')
+   
+   
    end = Sys.time()
    message(sprintf("Total time to fit models, with %d cores: %d minutes %d seconds.", 
                    detectCores() - ignorecores, 
@@ -113,7 +119,8 @@ if(!skipTraining) {
                    floor(as.numeric(end-begin, units="secs")) %% 60))
    
    # Store the names of each model.
-   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN', 'PCA', 'BAYE', 'BGLM', 'BLR')
+   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN', 'PCA', 'BAYE', 'BGLM', 'BLR', 
+               'PMR')
    
    # Stores all of the models in a list.
    # Each model name must begin with "fit".
