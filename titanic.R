@@ -5,56 +5,28 @@ skipTraining = F
 ignorecores = 0 # Number of cores left free when training.
 use.validation = F
 
-source("partitionData.R")
-source("activateParallel.R")
-activateParallel(ignorecores)
-
-# Read files.
-data = read.csv("data/train.csv", header=T, 
-                   colClasses=c("integer", "factor", "factor", "character", 
-                                 "factor", "numeric", "integer", "integer", 
-                                 "character", "numeric", "character", "factor"))
-final.test = read.csv("data/test.csv", header=T)
-
-# Set seed.
-set.seed(3846)
-
-# Load libraries.
+# Load External libraries.
 library(caret)
 library(plyr) 
 library(leaps)
 library(arm)
 library(mboost)
 library(RWeka)
+# Load internal files
+#source("config.R")
+source("partitionData.R")
+source("activateParallel.R")
+activateParallel(ignorecores)
 
-###
-# Pre-processing
-###
+# Read files.
+data = read.csv("data/cleaned/train.csv")
+final.test = read.csv("data/raw/test.csv")
 
-levels(data$Survived) = c("N", "Y")
-levels(data$Sex) = c("F", "M")
+# Set seed.
+set.seed(3846)
 
-# Remove Name, Ticket, Cabin, and incomplete cases.
-data <- data[complete.cases(data), c(-4, -9, -11)]
-
-###
 # Partition Data
-###
 partitionData(data,"Survived",use.validation)
-
-###
-# Best Subsets Regression
-###
-
-# Adjusted R2 method.
-lr2 = leaps(data.matrix(training[,3:9]), training[,2], method="adjr2")
-# Best combination of adjusted R2 predictors: Suvival ~ Pclass + Sex + Age + Sibsp
-print(names(training[,3:9])[lr2$which[match(max(lr2$adjr2), lr2$adjr2),]])
-
-# Mallow's Cp-statistic method.
-lcp = leaps(data.matrix(training[,3:9]), training[,2], method="Cp")
-# Many different combinations of predictors would be suitable, but at a minimum, PClass, Sex, and Age must be used.
-print(lcp$which[lcp$Cp <= 8,])
 
 ###
 # Training Original Models
