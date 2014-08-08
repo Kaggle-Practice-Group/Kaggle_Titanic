@@ -88,6 +88,10 @@ if(!skipTraining) {
    message("Training model (Neural Net)...")
    fitANN = train(formula, data=training, method='avNNet')
    
+   # 6- Fit Principal Component Analysis
+   message("Training model (PCA)...")
+   fitPCA <- train(formula, data=training, method='glmnet', preProcess='pca')
+   
    end = Sys.time()
    message(sprintf("Total time to fit models, with %d cores: %d minutes %d seconds.", 
                    detectCores() - ignorecores, 
@@ -95,7 +99,7 @@ if(!skipTraining) {
                    floor(as.numeric(end-begin, units="secs")) %% 60))
    
    # Store the names of each model.
-   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN')
+   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN', 'PCA')
    
    # Stores all of the models in a list.
    # Each model name must begin with "fit".
