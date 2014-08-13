@@ -20,7 +20,7 @@ activateParallel(ignorecores)
 
 # Read files.
 data = read.csv("data/cleaned/train.csv")
-final.test = read.csv("data/raw/test.csv")
+final.test = read.csv("data/cleaned/test.csv")
 
 # Set seed.
 set.seed(3846)
@@ -182,5 +182,11 @@ cat(sprintf("Real out-of-sample accuracy with stacked model: %.02f%%\n",
 
 
 summary(final.test)
-
-predict(stackedModel,final.test)
+res <- cbind(final.test$PassengerId,predict(fitRF,final.test))
+res <- as.data.frame(res)
+colnames(res) <- c("PassengerId","Survived")
+res$Survived[res$Survived==1]<- 0
+res$Survived[res$Survived==2]<- 1
+#res$Survived <- as.factor(res$Survived)
+#levels(res$Survived) = c("N", "Y")
+write.csv(res,"result.csv",row.names = F)

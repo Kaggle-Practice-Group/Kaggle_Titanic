@@ -51,6 +51,8 @@ summary(data)
 
 # Remove  Name, Ticket, Cabin, and incomplete cases.
 data <- data[, c(-4, -9, -11)]
+final.test <- final.test[, c(-3, -8, -10)]
+
 #names(data)
 #write the new file in data/cleaned
 write.csv(data,"data/cleaned/train.csv",row.names = F)

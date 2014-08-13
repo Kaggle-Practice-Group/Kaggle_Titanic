@@ -26,3 +26,4 @@ print(names(training[,3:9])[lr2$which[match(max(lr2$adjr2), lr2$adjr2),]])
 lcp = leaps(data.matrix(training[,3:9]), training[,2], method="Cp")
 # Many different combinations of predictors would be suitable, but at a minimum, PClass, Sex, and Age must be used.
 print(lcp$which[lcp$Cp <= 8,])
+names(data)
