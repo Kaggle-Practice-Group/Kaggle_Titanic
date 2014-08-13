@@ -35,53 +35,53 @@ partitionData(data,"Survived",use.validation)
 if(!skipTraining) {   
    
    # Define formula to use for training.
-   formula = formula(Survived ~ Age + Pclass + Sex + SibSp)
+   formula = formula(Survived ~ Pclass +Embarked+ Sex + SibSp+ Age)
    
    begin = Sys.time()
    
    # 1- Trees (rpart method)
-   message("Training model (rpart)...")
-   fitTREE <- train(formula, data=training, method='rpart', preProcess=c("center", "scale"))
+   #message("Training model (rpart)...")
+   #fitTREE <- train(formula, data=training, method='rpart', preProcess=c("center", "scale"))
    
    # 2- Random Forest
    message("Training model (Random Forests)...")
-   fitControlRF <- trainControl(method = "cv", number = 30)
+   fitControlRF <- trainControl(method = "cv", number = 75)
    fitRF <- train(formula, data=training, method='rf', preProcess=c("center", "scale"), 
                   trControl = fitControlRF, prox=TRUE, verbose = FALSE)
    
    # 3- GBM
    message("Training model (GBM)...")
-   fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 20)
+   fitControl <- trainControl(method = "repeatedcv", number = 20, repeats = 40)
    fitGBM <- train(formula, data=training, method='gbm', trControl=fitControl, 
                    verbose = FALSE)
    
    # 4- Support Vector Machine (SVM)
-   message("Training model (SVM)...")
-   fitSVM <- train(formula, data=training, method='svmLinear', trControl=fitControl)
+   #message("Training model (SVM)...")
+   #fitSVM <- train(formula, data=training, method='svmLinear', trControl=fitControl)
    
    # 5- Neural Net
    message("Training model (Neural Net)...")
    fitANN = train(formula, data=training, method='avNNet')
    
    # 6- Fit Principal Component Analysis
-   message("Training model (PCA)...")
-   fitPCA <- train(formula, data=training, method='glmnet', preProcess='pca')
+   #message("Training model (PCA)...")
+   #fitPCA <- train(formula, data=training, method='glmnet', preProcess='pca')
 
    # 7- Fit Bayesian Generalized Linear Model
-   message("Training model (Bayesian GLM)...")
-   fitBAYE <- train(formula, data=training, method='bayesglm', preProcess=c("center", "scale"))
+  # message("Training model (Bayesian GLM)...")
+  # fitBAYE <- train(formula, data=training, method='bayesglm', preProcess=c("center", "scale"))
  
    # 8- Fit Boosted Generalized Linear Model 
-   message("Training model (bGLM)...")
-   fitBGLM <- train(formula, data=training, method='glmboost', preProcess=c("center", "scale"))
+   #message("Training model (bGLM)...")
+   #fitBGLM <- train(formula, data=training, method='glmboost', preProcess=c("center", "scale"))
    
    # 9- Fit Boosted Logistic Regression 
-   message("Training model (bLR)...")
-   fitBLR <- train(formula, data=training, method='LogitBoost', preProcess=c("center", "scale"))
+   #message("Training model (bLR)...")
+   #fitBLR <- train(formula, data=training, method='LogitBoost', preProcess=c("center", "scale"))
    
    # 10- Fit Penalized Multinomial Regression 
-   message("Training model (PMR)...")
-   fitPMR <- train(formula, data=training, method='multinom')
+   #message("Training model (PMR)...")
+   #fitPMR <- train(formula, data=training, method='multinom')
    
    
    end = Sys.time()
@@ -91,8 +91,7 @@ if(!skipTraining) {
                    floor(as.numeric(end-begin, units="secs")) %% 60))
    
    # Store the names of each model.
-   method <- c('TREE', 'RF', 'GBM', 'SVM', 'ANN', 'PCA', 'BAYE', 'BGLM', 'BLR', 
-               'PMR')
+   method <- c('RF', 'GBM', 'ANN')
    
    # Stores all of the models in a list.
    # Each model name must begin with "fit".
@@ -181,3 +180,7 @@ if(use.validation)
 cat(sprintf("Real out-of-sample accuracy with stacked model: %.02f%%\n", 
             sum(stacked.test.predict == test.predict$Survived) / length(test.predict$Survived) * 100))
 
+
+summary(final.test)
+
+predict(stackedModel,final.test)
