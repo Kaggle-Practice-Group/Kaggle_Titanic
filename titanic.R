@@ -23,7 +23,7 @@ data = read.csv("data/cleaned/train.csv")
 final.test = read.csv("data/cleaned/test.csv")
 
 # Set seed.
-set.seed(3846)
+#set.seed(3846)
 
 # Partition Data
 partitionData(data,"Survived",use.validation)
@@ -35,7 +35,7 @@ partitionData(data,"Survived",use.validation)
 if(!skipTraining) {   
    
    # Define formula to use for training.
-   formula = formula(Survived ~ Pclass +Embarked+ Sex + SibSp+ Age)
+   formula = formula(Survived ~ Pclass+Age + Sex +  Fare)
    
    begin = Sys.time()
    
@@ -45,23 +45,23 @@ if(!skipTraining) {
    
    # 2- Random Forest
    message("Training model (Random Forests)...")
-   fitControlRF <- trainControl(method = "cv", number = 75)
-   fitRF <- train(formula, data=training, method='rf', preProcess=c("center", "scale"), 
+   fitControlRF <- trainControl(method = "cv", number = 50)
+   fitRF <- train(formula, data=training, method='rf',
                   trControl = fitControlRF, prox=TRUE, verbose = FALSE)
    
    # 3- GBM
-   message("Training model (GBM)...")
-   fitControl <- trainControl(method = "repeatedcv", number = 20, repeats = 40)
-   fitGBM <- train(formula, data=training, method='gbm', trControl=fitControl, 
-                   verbose = FALSE)
+   #message("Training model (GBM)...")
+   #fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 20)
+   #fitGBM <- train(formula, data=training, method='gbm', trControl=fitControl, 
+    #               verbose = FALSE)
    
    # 4- Support Vector Machine (SVM)
    #message("Training model (SVM)...")
    #fitSVM <- train(formula, data=training, method='svmLinear', trControl=fitControl)
    
    # 5- Neural Net
-   message("Training model (Neural Net)...")
-   fitANN = train(formula, data=training, method='avNNet')
+   #message("Training model (Neural Net)...")
+   #fitANN = train(formula, data=training, method='avNNet')
    
    # 6- Fit Principal Component Analysis
    #message("Training model (PCA)...")
@@ -91,7 +91,7 @@ if(!skipTraining) {
                    floor(as.numeric(end-begin, units="secs")) %% 60))
    
    # Store the names of each model.
-   method <- c('RF', 'GBM', 'ANN')
+   method <- c('RF')
    
    # Stores all of the models in a list.
    # Each model name must begin with "fit".
@@ -156,29 +156,30 @@ Highest real out-of-sample accuracy: %.02f%% with method %s\r\n",
 ###
 # Prediction
 ###
-if(!skipTraining) {      
-   # Create stacked model on predictions.
-   message("Training stacked model...")
-   stackedModel = train(Survived ~ ., method="rf", data=train.predict)
-}
+#if(!skipTraining) {      
+#   # Create stacked model on predictions.
+#   message("Training stacked model...")
+#   stackedModel = train(Survived ~ ., method="rf", data=train.predict)
+#}
 
 # Predict with stacked model.
-stacked.train.predict = predict(stackedModel, train.predict)
-stacked.test.predict = predict(stackedModel, test.predict)
+#stacked.train.predict = predict(stackedModel, train.predict)
+#stacked.test.predict = predict(stackedModel, test.predict)
 
-if(use.validation)
-   stacked.valid.predict = predict(stackedModel, valid.predict)
+
+#if(use.validation)
+#   stacked.valid.predict = predict(stackedModel, valid.predict)
 
 # Print accuracy.
-cat(sprintf("In-sample accuracy with stacked model: %.02f%%\n", 
-            sum(stacked.train.predict == train.predict$Survived) / length(train.predict$Survived) * 100))
+#cat(sprintf("In-sample accuracy with stacked model: %.02f%%\n", 
+ #           sum(stacked.train.predict == train.predict$Survived) / length(train.predict$Survived) * 100))
 
-if(use.validation)
-   cat(sprintf("Validation set accuracy with stacked model: %.02f%%\n", 
-               sum(stacked.valid.predict == valid.predict$Survived) / length(valid.predict$Survived) * 100))
+#if(use.validation)
+#   cat(sprintf("Validation set accuracy with stacked model: %.02f%%\n", 
+#               sum(stacked.valid.predict == valid.predict$Survived) / length(valid.predict$Survived) * 100))
 
-cat(sprintf("Real out-of-sample accuracy with stacked model: %.02f%%\n", 
-            sum(stacked.test.predict == test.predict$Survived) / length(test.predict$Survived) * 100))
+#cat(sprintf("Real out-of-sample accuracy with stacked model: %.02f%%\n", 
+#            sum(stacked.test.predict == test.predict$Survived) / length(test.predict$Survived) * 100))
 
 
 summary(final.test)

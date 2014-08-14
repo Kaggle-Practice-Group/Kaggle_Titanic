@@ -1,0 +1,13 @@
+
+mtry  Accuracy  Kappa  Accuracy SD  Kappa SD	Method    			Formula
+  2     0.822     0.591  0.124        0.293     cv=100				Pclass+Age + Sex +Embarked +  SibSp
+  2     0.821     0.565  0.183        0.443		cv=100, pre=scale	Pclass+Age + Sex +Embarked +  SibSp  
+  2     0.823     0.606  0.0398       0.0929    cv=10 rep=20		Pclass+Age + Sex +Embarked +  SibSp
+  4     0.82      0.61   0.0787       0.174		cv=30 rep=10		Pclass+Age + Sex +Embarked +  SibSp
+  
+  
+  To test
+  =====
+  2     0.826     0.623  0.093        0.204 	cv=50				 Pclass+Age + Sex +  SibSp
+  
+  2     0.843     0.653  0.0948       0.211		cv=50				 Pclass+Age + Sex +  Fare

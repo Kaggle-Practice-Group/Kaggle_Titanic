@@ -13,7 +13,7 @@ partitionData <- function(data,column.partition,use.validation= F)
 {
   # Split data: 75% training, 25% testing.
   inTrain <- createDataPartition(data[[column.partition]],
-                                 p=.75,
+                                 p=.85,
                                  list=FALSE)
   training <<- data[inTrain,]
   testing <<- data[-inTrain,]
